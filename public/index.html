@@ -46,7 +46,7 @@
   .report-wrap{flex:1;background:#fff;border:1.5px solid #f0f0f0;border-radius:12px;overflow:hidden;display:flex;flex-direction:column}
   .report-toolbar{padding:10px 14px;border-bottom:1px solid #f5f5f5;display:flex;align-items:center;gap:8px}
   .report-label{font-size:11px;font-weight:500;color:#aaa;flex:1}
-  .report-content{flex:1;padding:14px;font-family:'SF Mono',Monaco,'Courier New',monospace;font-size:11.5px;line-height:1.85;color:#1a1a1a;white-space:pre-wrap;word-break:break-word;overflow-y:auto;max-height:380px;min-height:200px}
+  .report-content{flex:1;padding:14px;font-family:'SF Mono',Monaco,'Courier New',monospace;font-size:11.5px;line-height:1.85;color:#1a1a1a;white-space:pre-wrap;word-break:break-word;overflow-y:auto;max-height:420px;min-height:200px}
   .report-content.empty{font-family:inherit;font-size:13px;color:#ccc;display:flex;align-items:center;justify-content:center;text-align:center;padding:32px}
   .bottom-row{display:flex;align-items:center;gap:8px;margin-top:4px}
   .status-txt{font-size:11px;color:#aaa;flex:1}
@@ -132,6 +132,9 @@ const COL = {
   spend:'Total (Without PMC)', cpl:'CPL (First Touch Only)', paidCpl:'Paid CPL',
   gross:'Gross', paidLeads:'Paid Leads', fresh:'Fresh', reengaged:'Reengaged',
   retention:'Retention (20 min)', recording:'Recording',
+  facebook:'facebook', youtube:'youtube', googleDiscovery:'google discovery',
+  googlepmc:'googlepmc', organic:'organic', midfunnel:'midfunnel',
+  interviewbit:'Interviewbit', influencer:'Influencer', topics:'Topics', linkedin:'Linkedin',
 };
 
 let allRows=[], filteredRows=[], selectedRow=null, reportText='';
@@ -199,6 +202,26 @@ function setStatus(state,txt){
   document.getElementById('status-txt').textContent=txt;
 }
 
+function buildChannelBlock() {
+  const channels = [
+    {name:'Facebook', val:g(COL.facebook)},
+    {name:'YouTube', val:g(COL.youtube)},
+    {name:'Google Discovery', val:g(COL.googleDiscovery)},
+    {name:'Google PMC', val:g(COL.googlepmc)},
+    {name:'Organic', val:g(COL.organic)},
+    {name:'Midfunnel', val:g(COL.midfunnel)},
+    {name:'InterviewBit', val:g(COL.interviewbit)},
+    {name:'Influencer', val:g(COL.influencer)},
+    {name:'Topics', val:g(COL.topics)},
+    {name:'LinkedIn', val:g(COL.linkedin)},
+  ];
+  const active = channels
+    .filter(c => c.val !== '—' && c.val !== '0%' && c.val !== '0')
+    .sort((a,b) => parseFloat(b.val) - parseFloat(a.val));
+  if (!active.length) return 'No channel data available';
+  return active.map(c => `${c.name}: ${c.val}`).join('\n');
+}
+
 async function generate() {
   if (!selectedRow) return;
   const url=document.getElementById('landing-url').value.trim();
@@ -216,18 +239,21 @@ async function generate() {
   box.className='report-content empty';
   box.textContent='Writing your Slack report...';
 
+  const channelBlock = buildChannelBlock();
+
   const prompt=`You are a growth marketing analyst at Scaler (edtech). Generate a clean Slack event report.
 
-FORMAT:
-- Use *bold* for section headers
+FORMAT RULES:
+- Use *bold* for section headers only
 - Bullets with •
-- Sections in order: Event Details → Lead Funnel → Performance → Feedback → Links
+- Sections in this exact order: Event Details → Lead Funnel → Performance → Feedback → Channel Mix → Links
 - G2S: ✅ if ≥60%, 🟡 if 40–59%, 🔴 if <40%
 - NPS: ✅ if ≥70, 🟡 if 50–69, 🔴 if <50, show — if missing
 - R2A: ✅ if ≥30%, 🟡 if 20–29%, 🔴 if <20%, show — if 0% or missing
 - If instructor has ⚠️ INSTRUCTOR CHANGE flag it with ⚠️ next to name
+- Channel Mix section: list only channels with >0%, sorted highest to lowest %, then add one line summary of top 2-3 channels driving leads
 - Only show Links section if recording is not "—"
-- No fluff. Numbers only. Tight and scannable.
+- No fluff. Tight and scannable.
 - End with: _Report generated via Scaler Event Dashboard_
 
 DATA:
@@ -260,6 +286,9 @@ CLS: ${g(COL.cls)}
 Callback%: ${g(COL.callback)}
 Alum Opt-in%: ${g(COL.alumOptIn)}
 Recording: ${g(COL.recording)}
+
+CHANNEL DISTRIBUTION (% of leads, only >0%):
+${channelBlock}
 
 Output only the Slack message. No preamble.`;
 
