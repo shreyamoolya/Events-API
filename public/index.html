@@ -52,7 +52,7 @@
   .status-txt{font-size:11px;color:#aaa;flex:1}
   .copy-btn{width:auto;min-width:130px;padding:8px 14px}
   .copied{background:#f0ebff!important;color:#6c47ff!important;border-color:#c4b5fd!important}
-  .spinner{width:10px;height:10px;border:2px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;animation:spin .6s linear infinite}
+  .spinner{width:10px;height:10px;border:2px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;animation:spin .6s linear infinite;display:inline-block}
   @keyframes spin{to{transform:rotate(360deg)}}
   .err-txt{font-size:11px;color:#e24b4a;margin-top:4px}
   .refresh-btn{background:none;border:1.5px solid #e8e8e8;border-radius:8px;padding:4px 10px;font-size:11px;color:#666;cursor:pointer;font-family:inherit;transition:all .15s}
@@ -93,7 +93,6 @@
       <div>
         <div class="sec">Landing page URL <span style="text-transform:none;letter-spacing:0;font-weight:400">(optional)</span></div>
         <input type="url" id="landing-url" placeholder="https://scaler.com/events/..."/>
-        <div class="hint">Auto-fills from sheet if available</div>
       </div>
       <button class="btn btn-primary" id="gen-btn" onclick="generate()" disabled>
         Generate Slack report
@@ -122,148 +121,102 @@
 </div>
 
 <script>
-const PROXY = '/api/sheet';
-
 const COL = {
-  name: 'Event name', date: 'Event Date', id: 'Event ID', cohort: 'Cohort',
-  time: 'Time', duration: 'Duration (in hours)', type: 'Type',
-  instructor: 'Instructor\n(** Change of Instructor)', host: 'Host',
-  nps: 'NPS', cls: 'CLS', screened: 'Registrations\n(Screened)',
-  r2a: 'Eligible R2A', normalR2a: 'Normal R2A (w/o influ,ib,topic)',
-  callback: 'Callback%', alumOptIn: 'Alum Opt-in%',
-  payments: 'Payments', l2p: 'L2P',
-  spend: 'Total (Without PMC)', cpl: 'CPL (First Touch Only)', paidCpl: 'Paid CPL',
-  gross: 'Gross', paidLeads: 'Paid Leads', fresh: 'Fresh', reengaged: 'Reengaged',
-  retention: 'Retention (20 min)', recording: 'Recording',
+  name:'Event name', date:'Event Date', id:'Event ID', cohort:'Cohort',
+  time:'Time', duration:'Duration (in hours)', type:'Type',
+  instructor:'Instructor\n(** Change of Instructor)', host:'Host',
+  nps:'NPS', cls:'CLS', screened:'Registrations\n(Screened)',
+  r2a:'Eligible R2A', normalR2a:'Normal R2A (w/o influ,ib,topic)',
+  callback:'Callback%', alumOptIn:'Alum Opt-in%',
+  payments:'Payments', l2p:'L2P',
+  spend:'Total (Without PMC)', cpl:'CPL (First Touch Only)', paidCpl:'Paid CPL',
+  gross:'Gross', paidLeads:'Paid Leads', fresh:'Fresh', reengaged:'Reengaged',
+  retention:'Retention (20 min)', recording:'Recording',
 };
 
-let allRows = [], filteredRows = [], selectedRow = null, reportText = '';
+let allRows=[], filteredRows=[], selectedRow=null, reportText='';
 
 async function loadSheet() {
-  setConn('amber', 'Connecting...');
-  document.getElementById('load-err').style.display = 'none';
+  setConn('amber','Connecting...');
+  document.getElementById('load-err').style.display='none';
   try {
-    const res = await fetch(PROXY);
+    const res = await fetch('/api/sheet');
     if (!res.ok) throw new Error(`Server error: ${res.status}`);
     const json = await res.json();
     if (!json.values || json.values.length < 2) throw new Error('No data found in sheet');
     const headers = json.values[0];
     allRows = json.values.slice(1)
-      .map(row => { const o = {}; headers.forEach((h, i) => o[h] = (row[i] || '').trim()); return o; })
+      .map(row => { const o={}; headers.forEach((h,i) => o[h]=(row[i]||'').trim()); return o; })
       .filter(r => r[COL.name] && r[COL.name].trim());
     filteredRows = allRows;
     renderList(allRows);
     setConn('green', `${allRows.length} events loaded`);
-  } catch (e) {
-    setConn('red', 'Failed to load');
+  } catch(e) {
+    setConn('red','Failed to load');
     const err = document.getElementById('load-err');
-    err.style.display = 'block';
-    err.textContent = e.message;
-    document.getElementById('event-list').innerHTML = `<div style="font-size:11px;color:#e24b4a;padding:4px">${e.message}</div>`;
+    err.style.display='block';
+    err.textContent=e.message;
+    document.getElementById('event-list').innerHTML=`<div style="font-size:11px;color:#e24b4a;padding:4px">${e.message}</div>`;
   }
 }
 
 function renderList(rows) {
   const el = document.getElementById('event-list');
-  if (!rows.length) { el.innerHTML = '<div style="font-size:12px;color:#ccc;padding:4px">No events found</div>'; return; }
-  el.innerHTML = '';
+  if (!rows.length) { el.innerHTML='<div style="font-size:12px;color:#ccc;padding:4px">No events found</div>'; return; }
+  el.innerHTML='';
   rows.forEach(row => {
     const d = document.createElement('div');
-    d.className = 'ecard';
-    d.innerHTML = `<div class="ecard-name">${row[COL.name] || '—'}</div><div class="ecard-meta">ID: ${row[COL.id] || '—'} · ${row[COL.date] || ''}</div>`;
-    d.onclick = () => {
-      document.querySelectorAll('.ecard').forEach(c => c.classList.remove('sel'));
+    d.className='ecard';
+    d.innerHTML=`<div class="ecard-name">${row[COL.name]||'—'}</div><div class="ecard-meta">ID: ${row[COL.id]||'—'} · ${row[COL.date]||''}</div>`;
+    d.onclick=()=>{
+      document.querySelectorAll('.ecard').forEach(c=>c.classList.remove('sel'));
       d.classList.add('sel');
-      selectedRow = row;
-      document.getElementById('gen-btn').disabled = false;
-      document.getElementById('report-label').textContent = row[COL.name] || 'Event selected';
-      const recUrl = row[COL.recording] || '';
-      if (recUrl && recUrl.startsWith('http')) document.getElementById('landing-url').value = recUrl;
+      selectedRow=row;
+      document.getElementById('gen-btn').disabled=false;
+      document.getElementById('report-label').textContent=row[COL.name]||'Event selected';
     };
     el.appendChild(d);
   });
 }
 
 function filterEvents() {
-  const q = document.getElementById('search').value.toLowerCase();
-  filteredRows = allRows.filter(r =>
-    (r[COL.name] || '').toLowerCase().includes(q) ||
-    String(r[COL.id] || '').includes(q)
-  );
+  const q=document.getElementById('search').value.toLowerCase();
+  filteredRows=allRows.filter(r=>(r[COL.name]||'').toLowerCase().includes(q)||String(r[COL.id]||'').includes(q));
   renderList(filteredRows);
 }
 
-function g(col) { return (selectedRow[col] || '').trim() || '—'; }
+function g(col){ return (selectedRow[col]||'').trim()||'—'; }
 
-function setConn(state, txt) {
-  const d = document.getElementById('conn-dot');
-  d.className = 'badge-dot' + (state === 'green' ? ' green' : state === 'amber' ? ' amber' : state === 'red' ? ' red' : '');
-  document.getElementById('conn-txt').textContent = txt;
+function setConn(state,txt){
+  const d=document.getElementById('conn-dot');
+  d.className='badge-dot'+(state==='green'?' green':state==='amber'?' amber':state==='red'?' red':'');
+  document.getElementById('conn-txt').textContent=txt;
 }
 
-function setStatus(state, txt) {
-  const d = document.getElementById('status-dot');
-  d.className = 'badge-dot' + (state === 'green' ? ' green' : state === 'amber' ? ' amber' : state === 'red' ? ' red' : '');
-  document.getElementById('status-txt').textContent = txt;
+function setStatus(state,txt){
+  const d=document.getElementById('status-dot');
+  d.className='badge-dot'+(state==='green'?' green':state==='amber'?' amber':state==='red'?' red':'');
+  document.getElementById('status-txt').textContent=txt;
 }
 
 async function generate() {
   if (!selectedRow) return;
-  const url = document.getElementById('landing-url').value.trim();
-  const gross = parseInt((g(COL.gross)).replace(/[^0-9]/g, '')) || 0;
-  const screened = parseInt((g(COL.screened)).replace(/[^0-9]/g, '')) || 0;
-  const g2s = gross > 0 ? ((screened / gross) * 100).toFixed(1) + '%' : '—';
-  const instrRaw = g(COL.instructor);
-  const instrChange = instrRaw.includes('**');
+  const url=document.getElementById('landing-url').value.trim();
+  const gross=parseInt((g(COL.gross)).replace(/[^0-9]/g,''))||0;
+  const screened=parseInt((g(COL.screened)).replace(/[^0-9]/g,''))||0;
+  const g2s=gross>0?((screened/gross)*100).toFixed(1)+'%':'—';
+  const instrRaw=g(COL.instructor);
+  const instrChange=instrRaw.includes('**');
 
-  const btn = document.getElementById('gen-btn');
-  const box = document.getElementById('report-box');
-  btn.disabled = true;
-  btn.innerHTML = '<div class="spinner"></div> Generating...';
-  setStatus('amber', 'Generating with Claude...');
-  box.className = 'report-content empty';
-  box.textContent = 'Writing your Slack report...';
+  const btn=document.getElementById('gen-btn');
+  const box=document.getElementById('report-box');
+  btn.disabled=true;
+  btn.innerHTML='<span class="spinner"></span> Generating...';
+  setStatus('amber','Generating report...');
+  box.className='report-content empty';
+  box.textContent='Writing your Slack report...';
 
-  const data = `
-Event name: ${g(COL.name)}
-Event ID: ${g(COL.id)}
-Date: ${g(COL.date)}
-Time: ${g(COL.time)}
-Duration: ${g(COL.duration)} hours
-Type: ${g(COL.type)}
-Instructor: ${instrRaw}${instrChange ? ' ⚠️ INSTRUCTOR CHANGE' : ''}
-Host: ${g(COL.host)}
-Cohort: ${g(COL.cohort)}
-Landing page: ${url || 'not provided'}
-
-LEAD FUNNEL:
-Gross leads: ${g(COL.gross)}
-Screened (eligible) leads: ${g(COL.screened)}
-G2S: ${g2s}
-Paid leads: ${g(COL.paidLeads)}
-Fresh %: ${g(COL.fresh)}
-Re-engaged %: ${g(COL.reengaged)}
-
-PERFORMANCE:
-Total spend (ex-PMC): ${g(COL.spend)}
-CPL (first touch): ${g(COL.cpl)}
-Paid CPL: ${g(COL.paidCpl)}
-Eligible R2A: ${g(COL.r2a)}
-Normal R2A: ${g(COL.normalR2a)}
-Retention (20 min): ${g(COL.retention)}
-Payments: ${g(COL.payments)}
-L2P: ${g(COL.l2p)}
-
-FEEDBACK:
-NPS: ${g(COL.nps)}
-CLS: ${g(COL.cls)}
-Callback%: ${g(COL.callback)}
-Alum Opt-in%: ${g(COL.alumOptIn)}
-
-Recording: ${g(COL.recording)}
-  `.trim();
-
-  const prompt = `You are a growth marketing analyst at Scaler (edtech). Generate a clean Slack event report.
+  const prompt=`You are a growth marketing analyst at Scaler (edtech). Generate a clean Slack event report.
 
 FORMAT:
 - Use *bold* for section headers
@@ -272,48 +225,73 @@ FORMAT:
 - G2S: ✅ if ≥60%, 🟡 if 40–59%, 🔴 if <40%
 - NPS: ✅ if ≥70, 🟡 if 50–69, 🔴 if <50, show — if missing
 - R2A: ✅ if ≥30%, 🟡 if 20–29%, 🔴 if <20%, show — if 0% or missing
-- If instructor has ⚠️ INSTRUCTOR CHANGE, flag with ⚠️ next to name
-- Only show Recording/Links section if recording is not "—"
+- If instructor has ⚠️ INSTRUCTOR CHANGE flag it with ⚠️ next to name
+- Only show Links section if recording is not "—"
 - No fluff. Numbers only. Tight and scannable.
 - End with: _Report generated via Scaler Event Dashboard_
 
 DATA:
-${data}
+Event name: ${g(COL.name)}
+Event ID: ${g(COL.id)}
+Date: ${g(COL.date)}
+Time: ${g(COL.time)}
+Duration: ${g(COL.duration)} hours
+Type: ${g(COL.type)}
+Instructor: ${instrRaw}${instrChange?' ⚠️ INSTRUCTOR CHANGE':''}
+Host: ${g(COL.host)}
+Cohort: ${g(COL.cohort)}
+Landing page: ${url||'not provided'}
+Gross leads: ${g(COL.gross)}
+Screened leads: ${g(COL.screened)}
+G2S: ${g2s}
+Paid leads: ${g(COL.paidLeads)}
+Fresh %: ${g(COL.fresh)}
+Re-engaged %: ${g(COL.reengaged)}
+Total spend (ex-PMC): ${g(COL.spend)}
+CPL (first touch): ${g(COL.cpl)}
+Paid CPL: ${g(COL.paidCpl)}
+Eligible R2A: ${g(COL.r2a)}
+Normal R2A: ${g(COL.normalR2a)}
+Retention (20 min): ${g(COL.retention)}
+Payments: ${g(COL.payments)}
+L2P: ${g(COL.l2p)}
+NPS: ${g(COL.nps)}
+CLS: ${g(COL.cls)}
+Callback%: ${g(COL.callback)}
+Alum Opt-in%: ${g(COL.alumOptIn)}
+Recording: ${g(COL.recording)}
 
 Output only the Slack message. No preamble.`;
 
   try {
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 1000,
-        messages: [{ role: 'user', content: prompt }]
-      })
+    const res=await fetch('/api/sheet',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({prompt})
     });
-    const json = await res.json();
-    reportText = json.content?.map(b => b.text || '').join('') || 'Error generating report.';
-    box.className = 'report-content';
-    box.textContent = reportText;
-    setStatus('green', 'Report ready');
-    document.getElementById('copy-btn').disabled = false;
-  } catch (e) {
-    box.className = 'report-content empty';
-    box.textContent = 'Error: ' + e.message;
-    setStatus('red', 'Failed');
+    const json=await res.json();
+    if (json.error) throw new Error(json.error);
+    reportText=json.text||'Error generating report.';
+    box.className='report-content';
+    box.textContent=reportText;
+    setStatus('green','Report ready');
+    document.getElementById('copy-btn').disabled=false;
+  } catch(e) {
+    box.className='report-content empty';
+    box.textContent='Error: '+e.message;
+    setStatus('red','Failed');
   }
-  btn.disabled = false;
-  btn.innerHTML = '↻ Regenerate';
+  btn.disabled=false;
+  btn.innerHTML='↻ Regenerate';
 }
 
 async function copyReport() {
   if (!reportText) return;
   await navigator.clipboard.writeText(reportText);
-  const btn = document.getElementById('copy-btn');
-  btn.textContent = '✓ Copied!';
+  const btn=document.getElementById('copy-btn');
+  btn.textContent='✓ Copied!';
   btn.classList.add('copied');
-  setTimeout(() => { btn.textContent = 'Copy to Slack'; btn.classList.remove('copied'); }, 2000);
+  setTimeout(()=>{ btn.textContent='Copy to Slack'; btn.classList.remove('copied'); },2000);
 }
 
 loadSheet();
