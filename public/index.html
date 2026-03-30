@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Scaler Event Report Generator</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f5f4f0;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding:32px 16px}
+  .header{width:100%;max-width:900px;margin-bottom:20px;display:flex;align-items:center;justify-content:space-between}
+  .logo{display:flex;align-items:center;gap:10px}
+  .logo-dot{width:28px;height:28px;background:#6c47ff;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:14px;font-weight:700}
+  .logo-text{font-size:15px;font-weight:600;color:#1a1a1a}
+  .logo-sub{font-size:11px;color:#888;margin-top:1px}
+  .conn-badge{display:flex;align-items:center;gap:6px;padding:5px 10px;border-radius:20px;background:#fff;border:1px solid #e5e5e5;font-size:11px;color:#666}
+  .badge-dot{width:6px;height:6px;border-radius:50%;background:#d0d0d0}
+  .badge-dot.green{background:#22c55e}
+  .badge-dot.amber{background:#f59e0b;animation:pulse .8s ease-in-out infinite}
+  .badge-dot.red{background:#e24b4a}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+  .card{width:100%;max-width:900px;background:#fff;border-radius:16px;border:1px solid #e8e8e8;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,.06)}
+  .card-body{display:grid;grid-template-columns:280px 1fr;min-height:520px}
+  .left{padding:20px;border-right:1px solid #f0f0f0;display:flex;flex-direction:column;gap:14px}
+  .right{padding:20px;display:flex;flex-direction:column;gap:12px;background:#fafafa}
+  .sec{font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#aaa;margin-bottom:5px}
+  input[type=text],input[type=url]{width:100%;padding:8px 11px;border:1.5px solid #eee;border-radius:10px;background:#fff;color:#1a1a1a;font-size:12px;font-family:inherit;outline:none;transition:border-color .15s}
+  input:focus{border-color:#6c47ff}
+  .hint{font-size:10px;color:#bbb;margin-top:3px}
+  .event-list{display:flex;flex-direction:column;gap:4px;max-height:220px;overflow-y:auto;padding-right:2px}
+  .event-list::-webkit-scrollbar{width:4px}
+  .event-list::-webkit-scrollbar-track{background:transparent}
+  .event-list::-webkit-scrollbar-thumb{background:#e0e0e0;border-radius:4px}
+  .ecard{padding:8px 10px;border:1.5px solid #f0f0f0;border-radius:10px;cursor:pointer;background:#fff;transition:all .12s}
+  .ecard:hover{border-color:#c4b5fd;background:#faf9ff}
+  .ecard.sel{border-color:#6c47ff;background:#f5f3ff}
+  .ecard-name{font-size:12px;font-weight:500;color:#1a1a1a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .ecard-meta{font-size:10px;color:#aaa;margin-top:2px}
+  .divider{height:1px;background:#f0f0f0}
+  .btn{width:100%;padding:10px 14px;border-radius:10px;font-size:13px;font-weight:500;font-family:inherit;cursor:pointer;transition:all .15s;border:none;display:flex;align-items:center;justify-content:center;gap:7px}
+  .btn-primary{background:#6c47ff;color:#fff}
+  .btn-primary:hover{background:#5a38e0}
+  .btn-primary:disabled{background:#c4b5fd;cursor:not-allowed}
+  .btn-secondary{background:#fff;color:#444;border:1.5px solid #e8e8e8}
+  .btn-secondary:hover{border-color:#6c47ff;color:#6c47ff}
+  .btn-secondary:disabled{opacity:.4;cursor:not-allowed}
+  .report-wrap{flex:1;background:#fff;border:1.5px solid #f0f0f0;border-radius:12px;overflow:hidden;display:flex;flex-direction:column}
+  .report-toolbar{padding:10px 14px;border-bottom:1px solid #f5f5f5;display:flex;align-items:center;gap:8px}
+  .report-label{font-size:11px;font-weight:500;color:#aaa;flex:1}
+  .report-content{flex:1;padding:14px;font-family:'SF Mono',Monaco,'Courier New',monospace;font-size:11.5px;line-height:1.85;color:#1a1a1a;white-space:pre-wrap;word-break:break-word;overflow-y:auto;max-height:380px;min-height:200px}
+  .report-content.empty{font-family:inherit;font-size:13px;color:#ccc;display:flex;align-items:center;justify-content:center;text-align:center;padding:32px}
+  .bottom-row{display:flex;align-items:center;gap:8px;margin-top:4px}
+  .status-txt{font-size:11px;color:#aaa;flex:1}
+  .copy-btn{width:auto;min-width:130px;padding:8px 14px}
+  .copied{background:#f0ebff!important;color:#6c47ff!important;border-color:#c4b5fd!important}
+  .spinner{width:10px;height:10px;border:2px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;animation:spin .6s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .err-txt{font-size:11px;color:#e24b4a;margin-top:4px}
+  .refresh-btn{background:none;border:1.5px solid #e8e8e8;border-radius:8px;padding:4px 10px;font-size:11px;color:#666;cursor:pointer;font-family:inherit;transition:all .15s}
+  .refresh-btn:hover{border-color:#6c47ff;color:#6c47ff}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="logo">
+    <div class="logo-dot">S</div>
+    <div>
+      <div class="logo-text">Scaler Event Report Generator</div>
+      <div class="logo-sub">Internal tool — Growth Marketing</div>
+    </div>
+  </div>
+  <div style="display:flex;align-items:center;gap:8px">
+    <button class="refresh-btn" onclick="loadSheet()">↻ Refresh sheet</button>
+    <div class="conn-badge">
+      <div class="badge-dot amber" id="conn-dot"></div>
+      <span id="conn-txt">Connecting...</span>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-body">
+    <div class="left">
+      <div>
+        <div class="sec">Search events</div>
+        <input type="text" id="search" placeholder="Event name or ID..." oninput="filterEvents()"/>
+        <div class="err-txt" id="load-err" style="display:none"></div>
+      </div>
+      <div class="event-list" id="event-list">
+        <div style="font-size:12px;color:#ccc;padding:8px 4px">Loading events...</div>
+      </div>
+      <div class="divider"></div>
+      <div>
+        <div class="sec">Landing page URL <span style="text-transform:none;letter-spacing:0;font-weight:400">(optional)</span></div>
+        <input type="url" id="landing-url" placeholder="https://scaler.com/events/..."/>
+        <div class="hint">Auto-fills from sheet if available</div>
+      </div>
+      <button class="btn btn-primary" id="gen-btn" onclick="generate()" disabled>
+        Generate Slack report
+      </button>
+    </div>
+
+    <div class="right">
+      <div class="sec">Slack report preview</div>
+      <div class="report-wrap">
+        <div class="report-toolbar">
+          <div class="report-label" id="report-label">No event selected</div>
+        </div>
+        <div class="report-content empty" id="report-box">
+          Select an event on the left, then hit Generate.
+        </div>
+      </div>
+      <div class="bottom-row">
+        <div class="badge-dot" id="status-dot"></div>
+        <div class="status-txt" id="status-txt">Ready</div>
+        <button class="btn btn-secondary copy-btn" id="copy-btn" disabled onclick="copyReport()">
+          Copy to Slack
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const PROXY = '/api/sheet';
+
+const COL = {
+  name: 'Event name', date: 'Event Date', id: 'Event ID', cohort: 'Cohort',
+  time: 'Time', duration: 'Duration (in hours)', type: 'Type',
+  instructor: 'Instructor\n(** Change of Instructor)', host: 'Host',
+  nps: 'NPS', cls: 'CLS', screened: 'Registrations\n(Screened)',
+  r2a: 'Eligible R2A', normalR2a: 'Normal R2A (w/o influ,ib,topic)',
+  callback: 'Callback%', alumOptIn: 'Alum Opt-in%',
+  payments: 'Payments', l2p: 'L2P',
+  spend: 'Total (Without PMC)', cpl: 'CPL (First Touch Only)', paidCpl: 'Paid CPL',
+  gross: 'Gross', paidLeads: 'Paid Leads', fresh: 'Fresh', reengaged: 'Reengaged',
+  retention: 'Retention (20 min)', recording: 'Recording',
+};
+
+let allRows = [], filteredRows = [], selectedRow = null, reportText = '';
+
+async function loadSheet() {
+  setConn('amber', 'Connecting...');
+  document.getElementById('load-err').style.display = 'none';
+  try {
+    const res = await fetch(PROXY);
+    if (!res.ok) throw new Error(`Server error: ${res.status}`);
+    const json = await res.json();
+    if (!json.values || json.values.length < 2) throw new Error('No data found in sheet');
+    const headers = json.values[0];
+    allRows = json.values.slice(1)
+      .map(row => { const o = {}; headers.forEach((h, i) => o[h] = (row[i] || '').trim()); return o; })
+      .filter(r => r[COL.name] && r[COL.name].trim());
+    filteredRows = allRows;
+    renderList(allRows);
+    setConn('green', `${allRows.length} events loaded`);
+  } catch (e) {
+    setConn('red', 'Failed to load');
+    const err = document.getElementById('load-err');
+    err.style.display = 'block';
+    err.textContent = e.message;
+    document.getElementById('event-list').innerHTML = `<div style="font-size:11px;color:#e24b4a;padding:4px">${e.message}</div>`;
+  }
+}
+
+function renderList(rows) {
+  const el = document.getElementById('event-list');
+  if (!rows.length) { el.innerHTML = '<div style="font-size:12px;color:#ccc;padding:4px">No events found</div>'; return; }
+  el.innerHTML = '';
+  rows.forEach(row => {
+    const d = document.createElement('div');
+    d.className = 'ecard';
+    d.innerHTML = `<div class="ecard-name">${row[COL.name] || '—'}</div><div class="ecard-meta">ID: ${row[COL.id] || '—'} · ${row[COL.date] || ''}</div>`;
+    d.onclick = () => {
+      document.querySelectorAll('.ecard').forEach(c => c.classList.remove('sel'));
+      d.classList.add('sel');
+      selectedRow = row;
+      document.getElementById('gen-btn').disabled = false;
+      document.getElementById('report-label').textContent = row[COL.name] || 'Event selected';
+      const recUrl = row[COL.recording] || '';
+      if (recUrl && recUrl.startsWith('http')) document.getElementById('landing-url').value = recUrl;
+    };
+    el.appendChild(d);
+  });
+}
+
+function filterEvents() {
+  const q = document.getElementById('search').value.toLowerCase();
+  filteredRows = allRows.filter(r =>
+    (r[COL.name] || '').toLowerCase().includes(q) ||
+    String(r[COL.id] || '').includes(q)
+  );
+  renderList(filteredRows);
+}
+
+function g(col) { return (selectedRow[col] || '').trim() || '—'; }
+
+function setConn(state, txt) {
+  const d = document.getElementById('conn-dot');
+  d.className = 'badge-dot' + (state === 'green' ? ' green' : state === 'amber' ? ' amber' : state === 'red' ? ' red' : '');
+  document.getElementById('conn-txt').textContent = txt;
+}
+
+function setStatus(state, txt) {
+  const d = document.getElementById('status-dot');
+  d.className = 'badge-dot' + (state === 'green' ? ' green' : state === 'amber' ? ' amber' : state === 'red' ? ' red' : '');
+  document.getElementById('status-txt').textContent = txt;
+}
+
+async function generate() {
+  if (!selectedRow) return;
+  const url = document.getElementById('landing-url').value.trim();
+  const gross = parseInt((g(COL.gross)).replace(/[^0-9]/g, '')) || 0;
+  const screened = parseInt((g(COL.screened)).replace(/[^0-9]/g, '')) || 0;
+  const g2s = gross > 0 ? ((screened / gross) * 100).toFixed(1) + '%' : '—';
+  const instrRaw = g(COL.instructor);
+  const instrChange = instrRaw.includes('**');
+
+  const btn = document.getElementById('gen-btn');
+  const box = document.getElementById('report-box');
+  btn.disabled = true;
+  btn.innerHTML = '<div class="spinner"></div> Generating...';
+  setStatus('amber', 'Generating with Claude...');
+  box.className = 'report-content empty';
+  box.textContent = 'Writing your Slack report...';
+
+  const data = `
+Event name: ${g(COL.name)}
+Event ID: ${g(COL.id)}
+Date: ${g(COL.date)}
+Time: ${g(COL.time)}
+Duration: ${g(COL.duration)} hours
+Type: ${g(COL.type)}
+Instructor: ${instrRaw}${instrChange ? ' ⚠️ INSTRUCTOR CHANGE' : ''}
+Host: ${g(COL.host)}
+Cohort: ${g(COL.cohort)}
+Landing page: ${url || 'not provided'}
+
+LEAD FUNNEL:
+Gross leads: ${g(COL.gross)}
+Screened (eligible) leads: ${g(COL.screened)}
+G2S: ${g2s}
+Paid leads: ${g(COL.paidLeads)}
+Fresh %: ${g(COL.fresh)}
+Re-engaged %: ${g(COL.reengaged)}
+
+PERFORMANCE:
+Total spend (ex-PMC): ${g(COL.spend)}
+CPL (first touch): ${g(COL.cpl)}
+Paid CPL: ${g(COL.paidCpl)}
+Eligible R2A: ${g(COL.r2a)}
+Normal R2A: ${g(COL.normalR2a)}
+Retention (20 min): ${g(COL.retention)}
+Payments: ${g(COL.payments)}
+L2P: ${g(COL.l2p)}
+
+FEEDBACK:
+NPS: ${g(COL.nps)}
+CLS: ${g(COL.cls)}
+Callback%: ${g(COL.callback)}
+Alum Opt-in%: ${g(COL.alumOptIn)}
+
+Recording: ${g(COL.recording)}
+  `.trim();
+
+  const prompt = `You are a growth marketing analyst at Scaler (edtech). Generate a clean Slack event report.
+
+FORMAT:
+- Use *bold* for section headers
+- Bullets with •
+- Sections in order: Event Details → Lead Funnel → Performance → Feedback → Links
+- G2S: ✅ if ≥60%, 🟡 if 40–59%, 🔴 if <40%
+- NPS: ✅ if ≥70, 🟡 if 50–69, 🔴 if <50, show — if missing
+- R2A: ✅ if ≥30%, 🟡 if 20–29%, 🔴 if <20%, show — if 0% or missing
+- If instructor has ⚠️ INSTRUCTOR CHANGE, flag with ⚠️ next to name
+- Only show Recording/Links section if recording is not "—"
+- No fluff. Numbers only. Tight and scannable.
+- End with: _Report generated via Scaler Event Dashboard_
+
+DATA:
+${data}
+
+Output only the Slack message. No preamble.`;
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1000,
+        messages: [{ role: 'user', content: prompt }]
+      })
+    });
+    const json = await res.json();
+    reportText = json.content?.map(b => b.text || '').join('') || 'Error generating report.';
+    box.className = 'report-content';
+    box.textContent = reportText;
+    setStatus('green', 'Report ready');
+    document.getElementById('copy-btn').disabled = false;
+  } catch (e) {
+    box.className = 'report-content empty';
+    box.textContent = 'Error: ' + e.message;
+    setStatus('red', 'Failed');
+  }
+  btn.disabled = false;
+  btn.innerHTML = '↻ Regenerate';
+}
+
+async function copyReport() {
+  if (!reportText) return;
+  await navigator.clipboard.writeText(reportText);
+  const btn = document.getElementById('copy-btn');
+  btn.textContent = '✓ Copied!';
+  btn.classList.add('copied');
+  setTimeout(() => { btn.textContent = 'Copy to Slack'; btn.classList.remove('copied'); }, 2000);
+}
+
+loadSheet();
+</script>
+</body>
+</html>
